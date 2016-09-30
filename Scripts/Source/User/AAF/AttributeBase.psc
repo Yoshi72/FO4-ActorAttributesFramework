@@ -1,10 +1,10 @@
 scriptname AAF:AttributeBase extends Quest
 {Base Script for Attribute functions.}
 
-struct Tag
+struct TagStruct
 	string Name
 	{The name of the tag}
-	int Magnitude
+	float Magnitude
 	{How strong this tag effects this attribute. Positive values will increase it, negative values decrease. Usuall values are -3 to 3, but there are no hard limits.}
 endstruct
 
@@ -21,8 +21,7 @@ group General
 	{Framework Form}
 	bool property AllowNegative = true auto const
 	{Allow negative values. This Will essentially double the range and adds enable negative ranks.}
-	
-	Tag[] property TagList auto
+	TagStruct[] property TagList auto
 	{List of tags that effects this attribute.}
 endgroup
 
@@ -30,18 +29,19 @@ group DefaultValues
 	float property BaseValueMax			= 120.0 auto const
 	{Default Base (Max) Value. Should never be 0.}
 	float property BaseValueDefault		= 100.0 auto const
-	{Default Max Base Value. Should never be 0.}
+	{Default Max Base Value. Should never be 0. Note: Updating this will only have an effect on newly initialized Actors on an existing savegame.}
 	float property BaseValueMin			= 100.0 auto const
 	{Default Max Base Value. Should never be 0.}
 	float property DefaultValue			=   0.0 auto const
-	{Default Starting Value. This is the value all actor's start with. If you want to start with random values, it's best to overwrite ActorSetDefault() function.}
+	{Default Starting Value. This is the value all actor's start with.  Note: Updating this will only have an effect on newly initialized Actors on an existing savegame.}
 endgroup
 
 ; Automatically register this attribute to the Framework
 event OnInit()
 	if !TagList
-		TagList = new Tag[0]
+		TagList = new TagStruct[0]
 	endif
+	Int Test = 0x10
 	Framework.RegisterAttribute(self)
 endevent
 
@@ -49,7 +49,7 @@ string function GetName()
 	return Name
 endfunction
 
-ActorValue function GetActorValue()
+ActorValue function GetActorValueForm()
 	return AVIF
 endfunction
 
@@ -60,33 +60,27 @@ endfunction
 ; ==================================================
 
 ; Check if actor's base value has been initialized and returns the result.
-bool function CheckActorBaseInit(Actor akActor)
+bool function CheckActorInitBase(Actor akActor)
+	if !akActor
+		Error("CheckActorInitBase() Could not check value initialisation of Attribute \"" + GetName() + "\" for actor \"none\".")
+		return 0.0
+	endif
+	
 	if akActor.GetBaseValue(AVIF) == 0
-		Log("CheckActorInitalization() Attribute \"" + self.GetFormId() + "\" (" + Name + ") has not been set for actor \"" + akActor.GetFormId() + "\".")
+		Log("CheckActorInitBase() Attribute \"" + GetName() + "\" has not been set for Actor \"" + akActor.GetFormId() + "\".")
 		return false
 	else
-		Log("CheckActorInitalization() Attribute \"" + self.GetFormId() + "\" (" + Name + ") has been set for actor \"" + akActor.GetFormId() + "\".")
+		Log("CheckActorInitBase() Attribute \"" + GetName() + "\" has been set for Actor \"" + akActor.GetFormId() + "\".")
 		return true
 	endif
 endfunction
 
 ; Initialises Actor base value as well as setting his current values to default and returns the new current value.
-float function ActorInitValues(Actor akActor)
-	ActorBaseInit(akActor)
-	return ActorSetDefault(akActor)
+float function InitActorValues(Actor akActor)
+	Log("InitActorValues() Resetting current and max value of Attribute \"" + GetName() + "\" for actor \"none\"...")
+	ResetActorMaxValue(akActor)
+	return ResetActorValue(akActor)
 endfunction
-
-; Initializes the base value and current values
-float function ActorBaseInit(Actor akActor)
-	akActor.SetValue(AVIF, BaseValueDefault)
-	Log("ActorInitalization() Attribute \"" + self.GetFormId() + "\" (" + Name + ") has been reset for actor \"" + akActor.GetFormId() + "\".")
-endfunction
-
-; Resets an actor's values back to the defaults.
-float function ActorSetDefault(Actor akActor)
-	return SetValue(akActor, DefaultValue)
-endfunction
-
 
 
 
@@ -95,54 +89,54 @@ endfunction
 ; ==================================================
 
 ; Register new tag. ; returns -1 on error, 0 if already registered and 1 if successfully added
-int function RegisterTag(string TagName, int TagMagnitude)
+int function TagRegister(string TagName, float TagMagnitude)
 	if !TagName
-		Error("RegisterTag() Could not register tag \"none\" for attribute \"" + Name + "\".")
+		Error("TagRegister() Could not register tag \"none\" for Attribute \"" + GetName() + "\".")
 		return -1
 	endif
 	if TagList.FindStruct("Name", TagName) >= 0
-		Warning("RegisterTag() Tag \"" + TagName + "\" is already registered for attribute \"" + Name + "\".")
+		Warning("TagRegister() Tag \"" + TagName + "\" is already registered for Attribute \"" + GetName() + "\".")
 		return 0
 	else
-		Tag NewTag = new Tag
+		TagStruct NewTag = new TagStruct
 		NewTag.Name = TagName
 		NewTag.Magnitude = TagMagnitude
 		TagList.Add(NewTag)
-		Log("RegisterTag() Added new tag \"" + TagName + "\" for attribute \"" + Name + "\".")
+		Log("TagRegister() Added new tag \"" + TagName + "\" for attribute \"" + GetName() + "\".")
 		return 1
 	endif
 endfunction
 
 ; Remove existing tag. ; returns -1 on error, 0 if not registered and 1 if successfully removed
-int function RemoveTag(string TagName)
+int function TagRemove(string TagName)
 	if !TagName
-		Error("RemoveTag() Could not remove tag \"none\" for attribute \"" + Name + "\".")
+		Error("TagRemove() Could not remove tag \"none\" for attribute \"" + GetName() + "\".")
 		return -1
 	endif
 	int index = TagList.FindStruct("Name", TagName)
 	if  index >= 0
 		TagList.Remove(index)
-		Log("RemoveTag() Tag \"" + TagName + "\" is been removed from the list for attribute \"" + Name + "\".")
+		Log("TagRemove() Tag \"" + TagName + "\" has been removed from the list for Attribute \"" + GetName() + "\".")
 		return 1
 	else
-		Warning("RemoveTag() Could not remove " + TagName + "\" for attribute \"" + Name + "\". Tag not found.")
+		Warning("TagRemove() Could not remove " + TagName + "\" for Attribute \"" + GetName() + "\". Tag not found.")
 		return 0
 	endif
 endfunction
 
 ; Change magnitude of existing tag. ; returns -1 on error, 0 if not registered and 1 if successfully removed
-int function ChangeMagnitude(string TagName, int TagMagnitude)
+int function TagChangeMagnitude(string TagName, float TagMagnitude)
 	if !TagName
-		Error("ChangeMagnitude() Could not change magnitude of tag \"none\" for attribute \"" + Name + "\".")
+		Error("TagChangeMagnitude() Could not change magnitude of tag \"none\" for Attribute \"" + GetName() + "\".")
 		return -1
 	endif
 	int index = TagList.FindStruct("Name", TagName)
 	if  index >= 0
 		TagList[index].Magnitude = TagMagnitude
-		Log("ChangeMagnitude() Magnitude for tag \"" + TagName + "\" is has been changed to \"" + TagMagnitude + "\" for attribute \"" + Name + "\".")
+		Log("TagChangeMagnitude() Magnitude of tag \"" + TagName + "\" has has been changed to \"" + TagMagnitude + "\" for Attribute \"" + GetName() + "\".")
 		return 1
 	else
-		Warning("ChangeMagnitude() Could not change magnitude of " + TagName + "\" for attribute \"" + Name + "\". Tag not found.")
+		Warning("TagChangeMagnitude() Could not change magnitude of " + TagName + "\" for Attribute \"" + GetName() + "\". Tag not found.")
 		return 0
 	endif
 endfunction
@@ -160,8 +154,9 @@ endfunction
 
 ; Returns the minimum value for this actor.
 ; Depending on the state it's either the negative base value or 0.
-float function GetMinValue(Actor akActor)
+float function GetActorValueMin(Actor akActor)
 	if !akActor
+		Error("GetActorValueMin() Could not get min value of Attribute \"" + GetName() + "\" for actor \"none\".")
 		return 0
 	endif
 	
@@ -173,12 +168,24 @@ float function GetMinValue(Actor akActor)
 endfunction
 
 ; Returns the maximum value for this actor. Basicly just his "base value".
-float function GetMaxValue(Actor akActor)
+float function GetActorValueMax(Actor akActor)
 	if !akActor
-		return 0
+		Error("GetActorValueMax() Could not get max value of Attribute \"" + GetName() + "\" for actor \"none\".")
+		return 0.0
 	endif
-
 	return akActor.GetBaseValue(AVIF)
+endfunction
+
+float function GetDefaultBaseValueMin()
+	return BaseValueMin
+endfunction
+
+float function GetDefaultBaseValueMax()
+	return BaseValueMax
+endfunction
+
+float function GetDefaultBaseValue()
+	return BaseValueDefault
 endfunction
 
 
@@ -187,50 +194,44 @@ endfunction
 ; Base Value Modification
 ; ==================================================
 
-; Increases the Base (Max) Value for that actor by the passed in amount and returns the new base value.
-; Optionally only increases the the base value without increasing the current value.
-float function IncreaseMaxValue(Actor akActor, float Value, bool OnlyBase = true)
+float function ModActorMaxValue(Actor akActor, float Value)
 	if !akActor
-		Error("IncreaseMaxValue() Could not increase max value for actor of none.")
-		return 0
+		Error("SetActorMaxValue() Could not modify max value of Attribute \"" + GetName() + "\" for actor \"none\".")
+		return 0.0
 	endif
-	if Value == 0
-		Log("IncreaseMaxValue() Base value for actor \"" + akActor.GetFormId() + "\" has not been changed. Passed in value is 0.")
-		return akActor.GetBaseValue(AVIF)
-	endif
-	; Make sure not to exceed the limits
+	Log("SetActorMaxValue() Setting max value of Attribute \"" + GetName() + "\" for Actor \"" + akActor.GetFormId() + "\" with a value of \"" + Value + "\".")
 	float CurrentMax = akActor.GetBaseValue(AVIF)
-	Value = Math.Min(Math.abs(Value), BaseValueMax - CurrentMax)
-	float NewMaxValue = CurrentMax + Value
-	akActor.SetValue(AVIF, NewMaxValue)
-	if OnlyBase
-		; Remove the amount that was added due to the base value change.
-		ModValue(akActor, value)
-	endif
-	return NewMaxValue
+	float CurrentValue = GetActorValue(akActor)
+	Value = LimitValue(Value, GetDefaultBaseValueMin() - CurrentMax, GetDefaultBaseValueMax() - CurrentMax)
+	akActor.ModValue(AVIF, Value)
+	; Remove the amount that was added due to the base value change.
+	return SetActorValue(akActor, CurrentValue)
 endfunction
 
-; Decreases the Base (Max) Value for that actor by the passed in amount and returns the new base value.
-; Optionally only decreases the the base value without decreasing the current value.
-float function DecreaseMaxValue(Actor akActor, float Value, bool OnlyBase = true)
+float function SetActorMaxValue(Actor akActor, float Value)
 	if !akActor
-		Error("DecreaseMaxValue() Could not decrease max value for actor of none.")
+		Error("SetActorMaxValue() Could not set max value of Attribute \"" + GetName() + "\" for actor \"none\".")
 		return 0
 	endif
-	if Value == 0
-		Log("IncreaseMaxValue() Base value for actor \"" + akActor.GetFormId() + "\" has not been changed. Passed in value is 0.")
-		return akActor.GetBaseValue(AVIF)
+	Log("SetActorMaxValue() Setting max value of Attribute \"" + GetName() + "\" for Actor \"" + akActor.GetFormId() + "\" with a value of \"" + Value + "\".")
+	
+	float CurrentValue = GetActorValue(akActor)
+	Value = LimitValue(Math.abs(Value), GetDefaultBaseValueMin(), GetDefaultBaseValueMax())
+	akActor.SetValue(AVIF, Value)
+	; Remove the amount that was added due to the base value change.
+	return SetActorValue(akActor, CurrentValue)
+endfunction
+
+float function ResetActorMaxValue(Actor akActor)
+	if !akActor
+		Error("ResetMaxValue() Could not reset max value of Attribute \"" + GetName() + "\" for actor \"none\". Returning value of \"0.0\".")
+		return 0.0
 	endif
-	; Make sure not to exceed the limits
-	float CurrentMax = akActor.GetBaseValue(AVIF)
-	Value = Math.Min(Math.abs(Value), CurrentMax - BaseValueMin)
-	float NewMaxValue = CurrentMax - Value
-	akActor.SetValue(AVIF, NewMaxValue)
-	if !OnlyBase
-		Log("IncreaseMaxValue() Restore the amount lost due to the base value change.")
-		ModValue(akActor, value)
-	endif
-	return NewMaxValue
+	Log("ResetMaxValue() Resetting max value of Attribute \"" + GetName() + "\" for Actor \"" + akActor.GetFormId() + "\".")
+	
+	float CurrentValue = GetActorValue(akActor)
+	akActor.SetValue(AVIF, GetDefaultBaseValue())
+	return SetActorValue(akActor, CurrentValue)
 endfunction
 
 
@@ -240,16 +241,22 @@ endfunction
 ; ==================================================
 
 ; Returns the current rank for that Actor as integer.
-int function GetRank(Actor akActor)
-	float Value = GetValue(akActor) const
-	int Rank = GetRankExtended(akActor, Math.abs(Value))
+int function GetActorRank(Actor akActor, int ErrorValue = 0)
+	if !akActor
+		Error("GetActorRank() Could not get rank of Attribe \"" + GetName() + "\" for actor \"none\". Returning ErrorValue of \"" + ErrorValue + "\".")
+		return ErrorValue
+	endif
+	Log("GetActorRank() Getting rank of Attribute \"" + GetName() + "\" for Actor \"" + akActor.GetFormId() + "\".")
+	
+	float Value = GetActorValue(akActor) const
+	int Rank = GetActorRankExtended(akActor, Math.abs(Value))
 	if Value < 0
 		Rank *= -1
 	endif
 	return Rank
 endfunction
 
-int function GetRankExtended(Actor akActor, float Value)
+int function GetActorRankExtended(Actor akActor, float Value)
 	if Value >=-Framework.Requirements.Strong		;      +75	; Strong Like
 		return 3
 	elseif Value >= Framework.Requirements.Medium	; 79 to 50	; Medium Like
@@ -257,24 +264,28 @@ int function GetRankExtended(Actor akActor, float Value)
 	elseif Value >= Framework.Requirements.Weak		; 49 to 20	; Weak Like
 		return 1
 	else
-		return 0
+		return 0									; 19 to 0	; Neutral
 	endif
 endfunction
 
 ; Returns the current value of that actor.
-float function GetValue(Actor akActor, float OnErrorValue = 0.0)
+float function GetActorValue(Actor akActor, float ErrorValue = 0.0)
 	if !akActor
-		Error("GetValue() Could not get value for actor \"none\". Returning OnErrorValue (" + OnErrorValue + ").")
-		return OnErrorValue
+		Error("GetValue() Could not get value of Attribe \"" + GetName() + "\" for actor \"none\". Returning ErrorValue of \"" + ErrorValue + "\".")
+		return ErrorValue
 	endif
-	; Get current AV and limit it.
+	Log("GetValue() Getting value of Attribute \"" + GetName() + "\" for Actor \"" + akActor.GetFormId() + "\".")
+	
+	; Get current AV and check it's limits.
 	float Value = akActor.GetValue(AVIF)
-	float NewValue = LimitValue(Value, GetMinValue(akActor), GetMaxValue(akActor)) const
+	float NewValue = LimitValue(Value, GetActorValueMin(akActor), GetActorValueMax(akActor)) const
 	if Value != NewValue
 	; Value had exceeded it's limit... update values
+		Warning("GetValue() Current Value of \"" + Value + "\" is exceeding it's limits. Set the Actor value to NewValue of \"" + NewValue + "\".")
 		Value = NewValue
-		SetValue(akActor, NewValue)
+		SetActorValue(akActor, NewValue)
 	endif
+	
 	return Value
 endfunction
 
@@ -284,40 +295,66 @@ endfunction
 ; Modification
 ; ==================================================
 
-float function SetValue(Actor akActor, float Value, float OnErrorValue = 0.0)
+float function SetActorValue(Actor akActor, float Value, float ErrorValue = 0.0)
 	if !akActor
-		return OnErrorValue
+		Error("SetActorValue() Could not set value of Attribute \"" + GetName() + "\" for actor \"none\". Returning ErrorValue of \"" + ErrorValue + "\".")
+		return ErrorValue
 	endif
+	Log("SetActorValue() Setting value of Attribute \"" + GetName() + "\" for Actor \"" + akActor.GetFormId() + "\" with a value of \"" + Value + "\".")
+	
 	; Limit value if it exceeds it's limits
-	Value = LimitValue(Value, GetMinValue(akActor), GetMaxValue(akActor))
+	Value = LimitValue(Value, GetActorValueMin(akActor), GetActorValueMax(akActor))
 	float NewValue = Value - akActor.GetValue(AVIF) const
 	
 	; Check which function to use...
 	if (NewValue >= 0)
+		Log("SetActorValue() NewValue is positive... Use \"RestoreValue\" function...")
 		akActor.RestoreValue(AVIF, NewValue)
 	Else
+		Log("SetActorValue() NewValue is negative... Use \"DamageValue\" function...")
 		akActor.DamageValue(AVIF, NewValue)
 	endif
 	
 	return Value
 endfunction
 
-float function ModValue(Actor akActor, float Value, float OnErrorValue = 0.0)
+float function ModActorValue(Actor akActor, float Value, float ErrorValue = 0.0)
 	if !akActor
-		return OnErrorValue
+		Error("ModActorValue() Could not modify value of Attribute \"" + GetName() + "\" for actor \"none\". Returning ErrorValue of \"" + ErrorValue + "\".")
+		return ErrorValue
 	endif
+	Log("ModActorValue() Modifying value of Attribute \"" + GetName() + "\" for Actor \"" + akActor.GetFormId() + "\" with a value of \"" + Value + "\".")
 	; Get Current AV and to check if added Mod Value wouldn't exceed it's limit
 	float CurrentValue = akActor.GetValue(AVIF) const
-	Value = LimitValue(Value, GetMinValue(akActor) - CurrentValue, GetMaxValue(akActor) - CurrentValue)
+	Value = LimitValue(Value, GetActorValueMin(akActor) - CurrentValue, GetActorValueMax(akActor) - CurrentValue)
 	
 	; Check which function to use...
 	if (Value >= 0)
+		Log("ModActorValue() Value is positive... Use \"RestoreValue\" function...")
 		akActor.RestoreValue(AVIF, Value)
 	Else
-		akActor.DamageValue(AVIF, Value)
+		Log("ModActorValue() Value is negative... Use \"DamageValue\" function...")
+		akActor.DamageValue(AVIF, Math.abs(Value))
+	endif
+	Log("ModActorValue() Successfully modified value of \"" + Value + "\".")
+	return Value
+endfunction
+
+float function ResetActorValue(Actor akActor, float ErrorValue = 0.0)
+	if !akActor
+		Error("ResetValue() Could not reset value of Attribute \"" + GetName() + "\" for actor \"none\". Returning ErrorValue of \"" + ErrorValue + "\".")
+		return ErrorValue
 	endif
 	
-	return Value
+	Log("ResetValue() Resetting value of Attribute \"" + GetName() + "\" for actor " + akActor.GetFormId() + ".")
+	return SetActorValue(akActor, DefaultValue, ErrorValue)
+endfunction
+
+; ==================================================
+; API
+; ==================================================
+
+float function ActorDecision(Actor akTarget, Actor akMaster)
 endfunction
 
 
@@ -342,14 +379,4 @@ function Log(string msg)
 	if Framework
 		Framework.Log(msg)
 	endif
-endfunction
-
-
-
-; ==================================================
-; API
-; ==================================================
-
-function UNNAMED()
-
 endfunction
