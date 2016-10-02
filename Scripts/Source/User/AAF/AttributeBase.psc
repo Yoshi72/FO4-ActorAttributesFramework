@@ -1,6 +1,10 @@
 scriptname AAF:AttributeBase extends Quest
 {Base Script for Attribute functions.}
 
+; ==================================================
+; Structs
+; ==================================================
+
 struct TagStruct
 	string Name
 	{The name of the tag}

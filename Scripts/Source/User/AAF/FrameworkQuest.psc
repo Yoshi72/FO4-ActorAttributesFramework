@@ -1,4 +1,5 @@
 scriptname AAF:FrameworkQuest extends Quest Conditional
+{Main Framework for handling Actor Attributes.}
 
 ; ==================================================
 ; Structs
@@ -38,7 +39,7 @@ int property LoggingLevel = 1 auto
 {The current log level... 0 = off, 1 = errors, 2 = errors + warnings, 3 = all.}
 
 int[] property MutexList auto hidden
-{Current list of MutexIds. This proeprty should not be changed manually!}
+{Current list of MutexIds. This property should not be changed manually!}
 
 float property MutexWaitTime = 1.0 auto
 {The amount of seconds that should be waited for each mutex cycle. Decrease this if the script is processing values too slowly.}
@@ -53,6 +54,7 @@ event OnInit()
 		MutexList = new int[0]
 	endif
 endevent
+
 
 
 ; ==================================================
@@ -112,7 +114,7 @@ endfunction
 
 ; Register a new Attribute.
 ; returns -1 for errors, 0 if it's already registered and 1 if successfully registered.
-int function RegisterAttribute(AAF:AttributeBase AttributeToAdd)
+int function AttributeRegister(AAF:AttributeBase AttributeToAdd)
 	; Check the passed in attribute...
 	if (!AttributeToAdd)
 		Error("RegisterAttribute() Could not register Attribute \"none\"")
@@ -129,15 +131,15 @@ int function RegisterAttribute(AAF:AttributeBase AttributeToAdd)
 	;int MutexId = MutexStart() const
 	
 	; Check if an instance of this Attribute has been registered already.
-	if IsAttributeRegistered(AttributeToAdd)
+	if AttributeIsRegistered(AttributeToAdd)
 		Warning("RegisterAttribute() Attribute \"" + AttributeToAdd.GetFormID() + "\" (" + AttributeToAdd.GetName() + ") already registered.")
 		;MutexEnd(MutexId)
 		return 0
-	elseif IsAttributeRegisteredByActorValue(AttributeToAdd.GetActorValueForm())
+	elseif AttributeIsRegisteredByActorValue(AttributeToAdd.GetActorValueForm())
 		Warning("RegisterAttribute() Could not register Attribute \"" + AttributeToAdd.GetFormID() + "\" (" + AttributeToAdd.GetName() + "). An Attribute with the same ActorValue is registered.")
 		;MutexEnd(MutexId)
 		return 0
-	elseif IsAttributeRegisteredByName(AttributeToAdd.GetName())
+	elseif AttributeIsRegisteredByName(AttributeToAdd.GetName())
 		Warning("RegisterAttribute() Could not register Attribute \"" + AttributeToAdd.GetFormID() + "\" (" + AttributeToAdd.GetName() + "). An Attribute with the same name is already registered.")
 		;MutexEnd(MutexId)
 		return 0
@@ -157,90 +159,90 @@ endfunction
 
 
 ; ==================================================
+; Registration Checks
+; ==================================================
+
+bool function AttributeIsRegistered(AAF:AttributeBase AttributeToCheck)
+	if (AttributeList.Findstruct("QUST", AttributeToCheck) >= 0)
+		Log("AttributeIsRegistered() Attribute \"" + AttributeToCheck.GetFormID() + "\" (" + AttributeToCheck.GetName() + ") is registered.")
+		return true
+	else
+		Log("AttributeIsRegistered() Attribute \"" + AttributeToCheck.GetFormID() + "\" (" + AttributeToCheck.GetName() + ") is not registered.")
+		return false
+	endif
+endfunction
+
+bool function AttributeIsRegisteredByActorValue(ActorValue ActorValueToCheck)
+	if (AttributeList.Findstruct("AVIF", ActorValueToCheck) >= 0)
+		Log("AttributeIwRegisteredByActorValue() An Attribute with the ActorValue of \"" + ActorValueToCheck.GetFormID() + "\" is registered.")
+		return true
+	else
+		Log("AttributeIwRegisteredByActorValue() No Attribute with the ActorValue of \"" + ActorValueToCheck.GetFormID() + "\" is registered.")
+		return false
+	endif
+endfunction
+
+bool function AttributeIsRegisteredByName(String NameToCheck)
+	if (AttributeList.Findstruct("Name", NameToCheck) >= 0)
+		Log("AttributeIsRegisteredByName() An Attribute with the name of \"" + NameToCheck + "\" is registered.")
+		return true
+	else
+		Log("AttributeIsRegisteredByName() No Attribute with the name of \"" + NameToCheck + "\" is registered.")
+		return false
+	endif
+endfunction
+
+
+
+; ==================================================
 ; Registration Removal
 ; ==================================================
 
-int function UnregisterAttribute(AAF:AttributeBase AttributeToRemove)
+int function AttributeRemove(AAF:AttributeBase AttributeToRemove)
 	if (!AttributeToRemove)
-		Error("UnregisterAttribute() Could not unregister Attribute \"none\"")
+		Error("AttributeRemove() Could not unregister Attribute \"none\"")
 		return -1
 	endif
 	int Index = AttributeList.FindStruct("QUST", AttributeToRemove)
 	if Index < 0
-		Warning("UnregisterAttribute() Could not uregister Attribute \"" + AttributeToRemove.GetName() + "\". Attribute is not registered.")
+		Warning("AttributeRemove() Could not uregister Attribute \"" + AttributeToRemove.GetName() + "\". Attribute is not registered.")
 		return 0
 	else
 		AttributeList.Remove(Index)
-		Log("UnregisterAttribute() Successfully unregistered Attribute \"" + AttributeToRemove.GetName() + "\".")
+		Log("AttributeRemove() Successfully unregistered Attribute \"" + AttributeToRemove.GetName() + "\".")
 		return 1
 	endif
 endfunction
 
-int function UnregisterAttributeByName(string AttributeName)
-	if (!AttributeName)
-		Error("UnregisterAttributeByName() Could not unregister Attribute with name \"none\"")
-		return -1
-	endif
-	int Index = AttributeList.FindStruct("Name", AttributeName)
-	if Index < 0
-		Warning("UnregisterAttributeByName() Could not uregister Attribute \"" + AttributeName + "\". Attribute is not registered.")
-		return 0
-	else
-		AttributeList.Remove(Index)
-		Log("UnregisterAttributeByName() Successfully unregistered Attribute \"" + AttributeName + "\".")
-		return 1
-	endif
-endfunction
-
-int function UnregisterAttributeByActorValue(ActorValue AttributeActorValue)
+int function AttributeRemoveByActorValue(ActorValue AttributeActorValue)
 	if (!AttributeActorValue)
-		Error("UnregisterAttributeByName() Could not unregister Attribute with Actorvalue \"none\"")
+		Error("AttributeRemoveByName() Could not unregister Attribute with Actorvalue \"none\"")
 		return -1
 	endif
 	int Index = AttributeList.FindStruct("AVIF", AttributeActorValue)
 	if Index < 0
-		Warning("UnregisterAttributeByName() Could not uregister Attribute \"" + AttributeActorValue.GetFormId() + "\". Attribute is not registered.")
+		Warning("AttributeRemoveByName() Could not uregister Attribute \"" + AttributeActorValue.GetFormId() + "\". Attribute is not registered.")
 		return 0
 	else
 		AttributeList.Remove(Index)
-		Log("UnregisterAttributeByName() Successfully unregistered Attribute \"" + AttributeActorValue + "\".")
+		Log("AttributeRemoveByName() Successfully unregistered Attribute \"" + AttributeActorValue + "\".")
 		return 1
 	endif
 endfunction
 
-
-
-; ==================================================
-; Registration Checks
-; ==================================================
-
-bool function IsAttributeRegistered(AAF:AttributeBase AttributeToCheck)
-	if (AttributeList.Findstruct("QUST", AttributeToCheck) >= 0)
-		Log("IsAttributeRegistered() Attribute \"" + AttributeToCheck.GetFormID() + "\" (" + AttributeToCheck.GetName() + ") is registered.")
-		return true
-	else
-		Log("IsAttributeRegistered() Attribute \"" + AttributeToCheck.GetFormID() + "\" (" + AttributeToCheck.GetName() + ") is not registered.")
-		return false
+int function AttributeRemoveByName(string AttributeName)
+	if (!AttributeName)
+		Error("AttributeRemoveByName() Could not unregister Attribute with name \"none\"")
+		return -1
 	endif
-endfunction
-
-bool function IsAttributeRegisteredByActorValue(ActorValue ActorValueToCheck)
-	if (AttributeList.Findstruct("AVIF", ActorValueToCheck) >= 0)
-		Log("IsAttributeRegisteredByActorValue() Attribute with the ActorValue of \"" + ActorValueToCheck.GetFormID() + "\" is registered.")
-		return true
+	int Index = AttributeList.FindStruct("Name", AttributeName)
+	if Index < 0
+		Warning("AttributeRemoveByName() Could not uregister Attribute \"" + AttributeName + "\". Attribute is not registered.")
+		return 0
 	else
-		Log("IsAttributeRegisteredByActorValue() No Attribute with the ActorValue of \"" + ActorValueToCheck.GetFormID() + "\" is not registered.")
-		return false
-	endif
-endfunction
-
-bool function IsAttributeRegisteredByName(String NameToCheck)
-	if (AttributeList.Findstruct("Name", NameToCheck) >= 0)
-		Log("IsAttributeRegisteredByName() Attribute with the name of \"" + NameToCheck + "\" is registered.")
-		return true
-	else
-		Log("IsAttributeRegisteredByName() No Attribute with the name of \"" + NameToCheck + "\" is registered.")
-		return false
+		AttributeList.Remove(Index)
+		Log("AttributeRemoveByName() Successfully unregistered Attribute \"" + AttributeName + "\".")
+		return 1
 	endif
 endfunction
 
@@ -250,45 +252,45 @@ endfunction
 ; Attribute Tags
 ; ==================================================
 
-int function RegisterAttributeTag(AAF:AttributeBase Attribute, string TagName, float TagMagnitude)
+int function AttributeTagRegister(AAF:AttributeBase Attribute, string TagName, float TagMagnitude)
 	if !Attribute
-		Error("RegisterAttributeTag() Failed to register tag. Parameter for Attribute is \"none\".")
+		Error("AttributeTagRegister() Failed to register tag. Parameter for Attribute is \"none\".")
 		return -1
 	elseif !TagName
-		Error("RegisterAttributeTag() Failed to register tag. Parameter for TagName is empty.")
+		Error("AttributeTagRegister() Failed to register tag. Parameter for TagName is empty.")
 		return -1
 	elseif !TagMagnitude
-		Error("RegisterAttributeTag() Failed to register tag. Parameter for TagMagnitude is 0.")
+		Error("AttributeTagRegister() Failed to register tag. Parameter for TagMagnitude is 0.")
 		return -1
 	endif
-	Log("RegisterAttributeTag() Ragister tag \"" + TagName + "\" for Attribute \"" + Attribute.GetName() + "\" with magnitude of " + TagMagnitude + ".")
+	Log("AttributeTagRegister() Ragister tag \"" + TagName + "\" for Attribute \"" + Attribute.GetName() + "\" with magnitude of " + TagMagnitude + ".")
 	return AttributeList[AttributeList.FindStruct("QUST", Attribute)].QUST.TagRegister(TagName, TagMagnitude)
 endfunction
 
-int function RemoveAttributeTag(AAF:AttributeBase Attribute, string TagName)
+int function AttributeTagRemove(AAF:AttributeBase Attribute, string TagName)
 	if !Attribute
-		Error("ChangeMagnitudeAttributeTag() Failed to remove tag. Parameter for Attribute is \"none\".")
+		Error("AttributeTagRemove() Failed to remove tag. Parameter for Attribute is \"none\".")
 		return -1
 	elseif !TagName
-		Error("ChangeMagnitudeAttributeTag() Failed to remove tag. Parameter for TagName is empty.")
+		Error("AttributeTagRemove() Failed to remove tag. Parameter for TagName is empty.")
 		return -1
 	endif
-	Log("RemoveAttributeTag() Remove tag \"" + TagName + "\" of Attribute \"" + Attribute.GetName() + "\".")
+	Log("AttributeTagRemove() Remove tag \"" + TagName + "\" of Attribute \"" + Attribute.GetName() + "\".")
 	return AttributeList[AttributeList.FindStruct("QUST", Attribute)].QUST.TagRemove(TagName)
 endfunction
 
-int function ChangeMagnitudeAttributeTag(AAF:AttributeBase Attribute, string TagName, float TagMagnitude)
+int function AttributeTagChangeMagnitude(AAF:AttributeBase Attribute, string TagName, float TagMagnitude)
 	if !Attribute
-		Error("ChangeMagnitudeAttributeTag() Failed to change magnitude. Parameter for Attribute is \"none\".")
+		Error("AttributeTagChangeMagnitude() Failed to change magnitude. Parameter for Attribute is \"none\".")
 		return -1
 	elseif !TagName
-		Error("ChangeMagnitudeAttributeTag() Failed to change magnitude. Parameter for TagName is empty.")
+		Error("AttributeTagChangeMagnitude() Failed to change magnitude. Parameter for TagName is empty.")
 		return -1
 	elseif !TagMagnitude
-		Error("ChangeMagnitudeAttributeTag() Failed to change magnitude. Parameter for TagMagnitude is 0.")
+		Error("AttributeTagChangeMagnitude() Failed to change magnitude. Parameter for TagMagnitude is 0.")
 		return -1
 	endif
-	Log("ChangeMagnitudeAttributeTag() Change magnitude of tag \"" + TagName + "\" for Attribute \"" + Attribute.GetName() + "\" to " + TagMagnitude + ".")
+	Log("AttributeTagChangeMagnitude() Change magnitude of tag \"" + TagName + "\" for Attribute \"" + Attribute.GetName() + "\" to " + TagMagnitude + ".")
 	return AttributeList[AttributeList.FindStruct("QUST", Attribute)].QUST.TagChangeMagnitude(TagName, TagMagnitude)
 endfunction
 
@@ -329,12 +331,12 @@ int function UpdateAttributeName(AAF:AttributeBase AttributeToChange)
 	endif
 endfunction
 
-int function UpdateAttributeNameByName(String AttributeName)
-	return UpdateAttributeName(GetAttributeByName(AttributeName))
-endfunction
-
 int function UpdateAttributeNameByActorValue(ActorValue AttributeActorValue)
 	return UpdateAttributeName(GetAttributeByActorValue(AttributeActorValue))
+endfunction
+
+int function UpdateAttributeNameByName(String AttributeName)
+	return UpdateAttributeName(GetAttributeByName(AttributeName))
 endfunction
 
 
@@ -354,22 +356,22 @@ int function UpdateActorValue(AAF:AttributeBase AttributeToChange)
 	
 	int MutexId = MutexStart() const
 	if (AttributeList.Findstruct("QUST", AttributeToChange) >= 0)
-		Warning("RegisterAttribute() Attribute \"" + AttributeToChange.GetFormID() + "\" (" + AttributeToChange.GetName() + ") already registered.")
+		Warning("UpdateActorValue() Attribute \"" + AttributeToChange.GetFormID() + "\" (" + AttributeToChange.GetName() + ") already registered.")
 		MutexEnd(MutexId)
 		return 0
 	elseif (AttributeList.Findstruct("Name", AttributeToChange.GetName()) >= 0)
-		Error("RegisterAttribute() Could not register Attribute \"" + AttributeToChange.GetFormID() + "\" (" + AttributeToChange.GetName() + "). A different Attribute with the same name is registered.")
+		Error("UpdateActorValue() Could not register Attribute \"" + AttributeToChange.GetFormID() + "\" (" + AttributeToChange.GetName() + "). A different Attribute with the same name is registered.")
 		MutexEnd(MutexId)
 		return -1
 	endif
 endfunction
 
-int function UpdateActorValueByName(String AttributeName)
-	UpdateActorValue(GetAttributeByName(AttributeName))
-endfunction
-
 int function UpdateActorValueByActorValue(ActorValue AttributeActorValue)
 	UpdateActorValue(GetAttributeByActorValue(AttributeActorValue))
+endfunction
+
+int function UpdateActorValueByName(String AttributeName)
+	UpdateActorValue(GetAttributeByName(AttributeName))
 endfunction
 
 
@@ -377,22 +379,6 @@ endfunction
 ; ==================================================
 ; Get Attribute
 ; ==================================================
-
-; Returns the Attribute by Name
-AAF:AttributeBase function GetAttributeByName(String AttributeName)
-	if !AttributeName
-		Error("GetAttributeByName() Could not find attribute with name \"none\".")
-		return none
-	endif
-	int Position = AttributeList.FindStruct("Name", AttributeName)
-	if Position >= 0
-		Log("GetAttributeByName() Found attribute with name \"" + AttributeName + "\".")
-		return AttributeList[Position].QUST
-	else
-		Warning("GetAttributeByName() Could not find attribute with name \"none\".")
-		return none
-	endif
-endfunction
 
 ; Returns the Attribute by ActorValue
 AAF:AttributeBase function GetAttributeByActorValue(ActorValue AttributeActorValue)
@@ -410,6 +396,22 @@ AAF:AttributeBase function GetAttributeByActorValue(ActorValue AttributeActorVal
 	endif
 endfunction
 
+; Returns the Attribute by Name
+AAF:AttributeBase function GetAttributeByName(String AttributeName)
+	if !AttributeName
+		Error("GetAttributeByName() Could not find attribute with name \"none\".")
+		return none
+	endif
+	int Position = AttributeList.FindStruct("Name", AttributeName)
+	if Position >= 0
+		Log("GetAttributeByName() Found attribute with name \"" + AttributeName + "\".")
+		return AttributeList[Position].QUST
+	else
+		Warning("GetAttributeByName() Could not find attribute with name \"none\".")
+		return none
+	endif
+endfunction
+
 
 
 ; ==================================================
@@ -417,7 +419,7 @@ endfunction
 ; ==================================================
 
 ; TODO
-int function ActorInitializationIfNeeded(Actor akActor, AAF:AttributeBase QUST)
+int function ActorInitializationIfNeeded(AAF:AttributeBase QUST, Actor akActor)
 	if !QUST
 		Error("ActorInitializationIfNeeded() Could not register Attribute \"none\"")
 		return -1
@@ -433,26 +435,55 @@ int function ActorInitializationIfNeeded(Actor akActor, AAF:AttributeBase QUST)
 	endif
 endfunction
 
-float function ActorResetToDefault(Actor akActor, AAF:AttributeBase QUST)
+
+
+; ==================================================
+; Reset Actor Max Value
+; ==================================================
+
+float function ResetActorMaxValue(AAF:AttributeBase QUST, Actor akActor)
 	int MutexId = MutexStart() const
-	float NewValue = QUST.SetActorDefaultValue(akActor)
+	float NewValue = QUST.ResetActorMaxValue(akActor)
 	MutexEnd(MutexId)
 	return NewValue
 endfunction
 
-float function ActorResetToDefaultByName(Actor akActor, String AttributeName)
-	return ActorResetToDefault(akActor, GetAttributeByName(AttributeName))
+float function ResetActorMaxValueByActorValue(ActorValue AttributeActorValue, Actor akActor)
+	return ResetActorMaxValue(GetAttributeByActorValue(AttributeActorValue), akActor)
 endfunction
 
-float function ActorResetToDefaultByActorValue(Actor akActor, ActorValue AttributeActorValue)
-	return ActorResetToDefault(akActor, GetAttributeByActorValue(AttributeActorValue))
+float function ResetActorMaxValueByName(String AttributeName,Actor akActor)
+	return ResetActorMaxValue(GetAttributeByName(AttributeName),akActor)
 endfunction
+
+
+
+; ==================================================
+; Reset Actor Current Value
+; ==================================================
+
+float function ResetActorValue(AAF:AttributeBase QUST, Actor akActor)
+	int MutexId = MutexStart() const
+	float NewValue = QUST.ResetActorValue(akActor)
+	MutexEnd(MutexId)
+	return NewValue
+endfunction
+
+float function ResetActorValueByActorValue(ActorValue AttributeActorValue, Actor akActor)
+	return ResetActorValue(GetAttributeByActorValue(AttributeActorValue), akActor)
+endfunction
+
+float function ResetActorValueByName(String AttributeName, Actor akActor)
+	return ResetActorValue(GetAttributeByName(AttributeName), akActor)
+endfunction
+
+
 
 ; ==================================================
 ; Get Attribute
 ; ==================================================
 
-float function GetAttributeValue(Actor akActor, AAF:AttributeBase QUST, float OnErrorValue = 0.0)
+float function GetAttributeValue(AAF:AttributeBase QUST, Actor akActor, float OnErrorValue = 0.0)
 	if !QUST
 		Error("GetAttributeValue() Could not get value for Attribute \"none\"")
 		return OnErrorValue
@@ -464,12 +495,12 @@ float function GetAttributeValue(Actor akActor, AAF:AttributeBase QUST, float On
 	return QUST.GetActorValue(akActor, OnErrorValue)
 endfunction
 
-float function GetAttributeValueByActorValue(Actor akActor, ActorValue AttributeActorValue, float OnErrorValue = 0.0)
-	return GetAttributeValue(akActor, GetAttributeByActorValue(AttributeActorValue), OnErrorValue = 0.0)
+float function GetAttributeValueByActorValue(ActorValue AttributeActorValue, Actor akActor, float OnErrorValue = 0.0)
+	return GetAttributeValue(GetAttributeByActorValue(AttributeActorValue), akActor, OnErrorValue = 0.0)
 endfunction
 
-float function GetAttributeValueByName(Actor akActor, String AttributeName, float OnErrorValue = 0.0)
-	return GetAttributeValue(akActor, GetAttributeByName(AttributeName), OnErrorValue = 0.0)
+float function GetAttributeValueByName(String AttributeName, Actor akActor, float OnErrorValue = 0.0)
+	return GetAttributeValue(GetAttributeByName(AttributeName), akActor, OnErrorValue = 0.0)
 endfunction
 
 
@@ -501,52 +532,6 @@ endfunction
 
 
 ; ==================================================
-; Get Attribute BaseValue Max
-; ==================================================
-
-float function GetAttributeBaseValueMax(AAF:AttributeBase QUST)
-	if !QUST
-		Error("GetAttributeBaseValueMax() Could not get maxx base value for Attribute \"none\"")
-		return 0.0
-	endif
-	;ActorInitializationIfNeeded(akActor, QUST)
-	return QUST.GetDefaultBaseValueMax()
-endfunction
-
-float function GetAttributeBaseValueMaxByActorValue(ActorValue AttributeActorValue)
-	return GetAttributeBaseValueMax(GetAttributeByActorValue(AttributeActorValue))
-endfunction
-
-float function GetAttributeBaseValueMaxByName(String AttributeName)
-	return GetAttributeBaseValueMax(GetAttributeByName(AttributeName))
-endfunction
-
-
-
-; ==================================================
-; Get Attribute BaseValue Default
-; ==================================================
-
-float function GetAttributeBaseValueDefault(AAF:AttributeBase QUST)
-	if !QUST
-		Error("GetAttributeBaseValueDefault() Could not get default base value for Attribute \"none\"")
-		return 0.0
-	endif
-	;ActorInitializationIfNeeded(akActor, QUST)
-	return QUST.GetDefaultBaseValueDefault()
-endfunction
-
-float function GetAttributeBaseValueDefaultByActorValue(ActorValue AttributeActorValue)
-	return GetAttributeBaseValueDefault(GetAttributeByActorValue(AttributeActorValue))
-endfunction
-
-float function GetAttributeBaseValueDefaultByName(String AttributeName)
-	return GetAttributeBaseValueDefault(GetAttributeByName(AttributeName))
-endfunction
-
-
-
-; ==================================================
 ; Get Attribute Actor Value Max
 ; ==================================================
 
@@ -573,10 +558,79 @@ endfunction
 
 
 ; ==================================================
-; Get Attribute BaseValue Min
+; Get Attribute Default Base Value Min
 ; ==================================================
 
-float function GetAttributeBaseValueMin(AAF:AttributeBase QUST)
+float function GetAttributeDefaultBaseValueMin(AAF:AttributeBase QUST)
+	if !QUST
+		Error("GetAttributeBaseValueMin() Could not get Minx base value for Attribute \"none\"")
+		return 0.0
+	endif
+	;ActorInitializationIfNeeded(akActor, QUST)
+	return QUST.GetDefaultBaseValueMin()
+endfunction
+
+float function GetAttributeDefaultBaseValueMinByActorValue(ActorValue AttributeActorValue)
+	return GetAttributeDefaultBaseValueMin(GetAttributeByActorValue(AttributeActorValue))
+endfunction
+
+float function GetAttributeDefaultBaseValueMinByName(String AttributeName)
+	return GetAttributeDefaultBaseValueMin(GetAttributeByName(AttributeName))
+endfunction
+
+
+
+; ==================================================
+; Get Attribute Default Base Value Max
+; ==================================================
+
+float function GetAttributeDefaultBaseValueMax(AAF:AttributeBase QUST)
+	if !QUST
+		Error("GetAttributeBaseValueMax() Could not get maxx base value for Attribute \"none\"")
+		return 0.0
+	endif
+	;ActorInitializationIfNeeded(akActor, QUST)
+	return QUST.GetDefaultBaseValueMax()
+endfunction
+
+float function GetAttributeDefaultBaseValueMaxByActorValue(ActorValue AttributeActorValue)
+	return GetAttributeDefaultBaseValueMax(GetAttributeByActorValue(AttributeActorValue))
+endfunction
+
+float function GetAttributeDefaultBaseValueMaxByName(String AttributeName)
+	return GetAttributeDefaultBaseValueMax(GetAttributeByName(AttributeName))
+endfunction
+
+
+
+; ==================================================
+; Get Attribute Default Base Value
+; ==================================================
+
+float function GetAttributeDefaultBaseValue(AAF:AttributeBase QUST)
+	if !QUST
+		Error("GetAttributeBaseValue() Could not get x base value for Attribute \"none\"")
+		return 0.0
+	endif
+	;ActorInitializationIfNeeded(akActor, QUST)
+	return QUST.GetDefaultBaseValue()
+endfunction
+
+float function GetAttributeDefaultBaseValueByActorValue(ActorValue AttributeActorValue)
+	return GetAttributeDefaultBaseValue(GetAttributeByActorValue(AttributeActorValue))
+endfunction
+
+float function GetAttributeDefaultBaseValueByName(String AttributeName)
+	return GetAttributeDefaultBaseValue(GetAttributeByName(AttributeName))
+endfunction
+
+
+
+; ==================================================
+; Get Attribute Actor Value Min
+; ==================================================
+
+float function GetAttributeValueMin(AAF:AttributeBase QUST)
 	if !QUST
 		Error("GetAttributeBaseValueMin() Could not get min base value for Attribute \"none\"")
 		return 0.0
@@ -585,12 +639,35 @@ float function GetAttributeBaseValueMin(AAF:AttributeBase QUST)
 	return QUST.GetDefaultBaseValueMin()
 endfunction
 
-float function GetAttributeBaseValueMinByActorValue(ActorValue AttributeActorValue)
-	return GetAttributeBaseValueMin(GetAttributeByActorValue(AttributeActorValue))
+float function GetAttributeActorValueMinByActorValue(ActorValue AttributeActorValue)
+	return GetAttributeActorValueMin(GetAttributeByActorValue(AttributeActorValue))
 endfunction
 
-float function GetAttributeBaseValueMinByName(String AttributeName)
-	return GetAttributeBaseValueMin(GetAttributeByName(AttributeName))
+float function GetAttributeActorValueMinByName(String AttributeName)
+	return GetAttributeActorValueMin(GetAttributeByName(AttributeName))
+endfunction
+
+
+
+; ==================================================
+; Get Attribute Actor Value Max
+; ==================================================
+
+float function GetAttributeActorValueMax(AAF:AttributeBase QUST)
+	if !QUST
+		Error("GetAttributeBaseValueMax() Could not get Max base value for Attribute \"none\"")
+		return 0.0
+	endif
+	;ActorInitializationIfNeeded(akActor, QUST)
+	return QUST.GetActorValueMax()
+endfunction
+
+float function GetAttributeActorValueMaxByActorValue(ActorValue AttributeActorValue)
+	return GetAttributeActorValueMax(GetAttributeByActorValue(AttributeActorValue))
+endfunction
+
+float function GetAttributeActorValueMaxByName(String AttributeName)
+	return GetAttributeActorValueMax(GetAttributeByName(AttributeName))
 endfunction
 
 
@@ -599,7 +676,7 @@ endfunction
 ; Mod Actor Max Value
 ; ==================================================
 
-float function ModActorBaseMaxValue(AAF:AttributeBase QUST, Actor akActor, float Value)
+float function ModAttributeActorMaxValue(AAF:AttributeBase QUST, Actor akActor, float Value)
 	if !QUST
 		Error("GetAttributeBaseValueMin() Could not get min base value for Attribute \"none\"")
 		return 0.0
@@ -608,12 +685,12 @@ float function ModActorBaseMaxValue(AAF:AttributeBase QUST, Actor akActor, float
 	return QUST.ModActorMaxValue(Value)
 endfunction
 
-float function ModAttributeBaseValueMinByActorValue(ActorValue AttributeActorValue, Actor akActor, float Value)
-	return ModActorBaseMaxValue(GetAttributeByActorValue(AttributeActorValue), akActor, Value)
+float function ModAttributeActorMaxValueByActorValue(ActorValue AttributeActorValue, Actor akActor, float Value)
+	return ModAttributeActorMaxValue(GetAttributeByActorValue(AttributeActorValue), akActor, Value)
 endfunction
 
-float function ModAttributeBaseValueMinByName(String AttributeName, Actor akActor, float Value)
-	return ModActorBaseMaxValue(GetAttributeByName(AttributeName), akActor, Value)
+float function ModAttributeActorMaxValueByName(String AttributeName, Actor akActor, float Value)
+	return ModAttributeActorMaxValue(GetAttributeByName(AttributeName), akActor, Value)
 endfunction
 
 
@@ -622,60 +699,21 @@ endfunction
 ; Set Actor Max Value
 ; ==================================================
 
-float function SetActorBaseMaxValue(AAF:AttributeBase QUST, Actor akActor, float Value)
+float function SetAttributeActorMaxValue(AAF:AttributeBase QUST, Actor akActor, float Value)
 	if !QUST
-		Error("SettAttributeBaseValueMin() Could not set base value for Attribute \"none\"")
-		return 0.0
-	endif
-	if !akActor
-		Error("SettAttributeBaseValueMin() Could not get min base value for Attribute \"none\"")
-		return 0.0
-	endif
-	if Value == 0
-		Error("SettAttributeBaseValueMin() Could not get min base value for Attribute \"none\"")
+		Error("GetAttributeBaseValueMin() Could not get min base value for Attribute \"none\"")
 		return 0.0
 	endif
 	;ActorInitializationIfNeeded(akActor, QUST)
-	return QUST.SetActorMaxValue(akActor, Value)
+	return QUST.SetActorMaxValue(Value)
 endfunction
 
-float function SetActorBaseValueMinByActorValue(ActorValue AttributeActorValue, Actor akActor, float Value)
-	return SetActorBaseMaxValue(GetAttributeByActorValue(AttributeActorValue), akActor, Value)
+float function SetAttributeActorMaxValueByActorValue(ActorValue AttributeActorValue, Actor akActor, float Value)
+	return SetAttributeActorMaxValue(GetAttributeByActorValue(AttributeActorValue), akActor, Value)
 endfunction
 
-float function SetActorBaseValueMinByName(String AttributeName, Actor akActor, float Value)
-	return SetActorBaseMaxValue(GetAttributeByName(AttributeName), akActor, Value)
-endfunction
-
-
-
-; ==================================================
-; Reset Actor Max Value
-; ==================================================
-
-float function ResetActorBaseMaxValue(AAF:AttributeBase QUST, Actor akActor)
-	if !QUST
-		Error("SettAttributeBaseValueMin() Could not set base value for Attribute \"none\"")
-		return 0.0
-	endif
-	if !akActor
-		Error("SettAttributeBaseValueMin() Could not get min base value for Attribute \"none\"")
-		return 0.0
-	endif
-	if Value == 0
-		Error("SettAttributeBaseValueMin() Could not get min base value for Attribute \"none\"")
-		return 0.0
-	endif
-	;ActorInitializationIfNeeded(akActor, QUST)
-	return QUST.ResetActorMaxValue(akActor)
-endfunction
-
-float function ResetActorBaseValueMinByActorValue(ActorValue AttributeActorValue, Actor akActor)
-	return ResetActorBaseMaxValue(GetAttributeByActorValue(AttributeActorValue), akActor)
-endfunction
-
-float function ResetActorBaseValueMinByName(String AttributeName, Actor akActor)
-	return ResetActorBaseMaxValue(GetAttributeByName(AttributeName), akActor)
+float function SetAttributeActorMaxValueByName(String AttributeName, Actor akActor, float Value)
+	return SetAttributeActorMaxValue(GetAttributeByName(AttributeName), akActor, Value)
 endfunction
 
 
